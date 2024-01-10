@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::env;
 use std::ffi::OsStr;
 use std::fs::{self, ReadDir};
@@ -13,6 +14,8 @@ const PROJECT_NAME: &'static str = "find_project";
 
 const FZF_BIN: &'static str = "/usr/bin/fzf";
 const TMUX_BIN: &'static str = "/usr/bin/tmux";
+
+// FIX: Server crashing unexpectedly when connecting to a new session
 
 /// A directory holding projects.
 #[derive(Debug)]
@@ -70,6 +73,7 @@ fn main() -> Result<()> {
 
     let active_sessions = match list_sessions_output.status.code() {
         Some(0) => String::from_utf8_lossy(&list_sessions_output.stdout),
+        Some(1) => Cow::from(""),
         Some(code) => return Err(anyhow!("tmux errored with code: {}.", code)),
         None => return Err(anyhow!("Nothing was returned by tmux.")),
     };
