@@ -88,6 +88,7 @@ fn main() -> Result<()> {
         .expect("Failed to run `fzf`.");
 
     if let Some(mut stdin) = fzf.stdin.take() {
+        // TODO: Fix duplicate entries
         let project_strs = projects.iter().filter_map(|p| p.full_path().to_str()).fold(
             String::new(),
             |mut acc, path| {
