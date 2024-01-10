@@ -1,6 +1,6 @@
 use std::env;
 use std::ffi::OsStr;
-use std::fs::{self, OpenOptions, ReadDir};
+use std::fs::{self, ReadDir};
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -11,11 +11,13 @@ use anyhow::{anyhow, Result};
 
 const PROJECT_NAME: &'static str = "find_project";
 
+#[derive(Debug)]
 struct SrcDir {
     path: PathBuf,
     search_depth: u8,
 }
 
+#[derive(Debug)]
 struct Project {
     path: PathBuf,
     name: String,
@@ -74,8 +76,27 @@ fn main() -> Result<()> {
         None => return Err(anyhow!("Nothing was returned by fzf.")),
     };
 
-    println!("Selected: {:?}", selected_project_path);
-    Ok(())
+    let selected_project = {
+        let name = selected_project_path
+            .file_name()
+            .ok_or_else(|| anyhow!("Failed to get selected project name"))?;
+        let name = name
+            .to_str()
+            .ok_or_else(|| anyhow!("Failed to convert to from OsStr to String"))?
+            .trim() // Get rid of the '\n' at the end of line
+            .to_owned();
+
+        let path = selected_project_path
+            .parent()
+            .ok_or_else(|| anyhow!("Failed to get selected project's parent path"))?
+            .to_path_buf();
+
+        Project { path, name }
+    };
+
+    println!("Selected: {:?}", selected_project);
+
+    switch_to_project_in_tmux(&selected_project)
 }
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<SrcDir>> {
@@ -137,4 +158,8 @@ fn get_projects(mut src_dir: ReadDir, depth: u8) -> Result<Vec<Project>> {
     get_projects_recur(&mut src_dir, depth, &mut projects)?;
 
     Ok(projects)
+}
+
+fn switch_to_project_in_tmux(project: &Project) -> Result<()> {
+    Ok(())
 }
