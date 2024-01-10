@@ -73,7 +73,7 @@ fn main() -> Result<()> {
 
     let active_sessions = match list_sessions_output.status.code() {
         Some(0) => String::from_utf8_lossy(&list_sessions_output.stdout),
-        Some(1) => Cow::from(""),
+        Some(1) => Cow::from(""), // Error code 1 means there are no active tmux sessions
         Some(code) => return Err(anyhow!("tmux errored with code: {}.", code)),
         None => return Err(anyhow!("Nothing was returned by tmux.")),
     };
@@ -92,7 +92,6 @@ fn main() -> Result<()> {
         .expect("Failed to run `fzf`.");
 
     if let Some(mut stdin) = fzf.stdin.take() {
-        // TODO: Fix duplicate entries
         let project_strs = projects.iter().filter_map(|p| p.full_path().to_str()).fold(
             String::new(),
             |mut acc, path| {
@@ -135,7 +134,7 @@ fn main() -> Result<()> {
 }
 
 fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<SrcDir>> {
-    let mut src_dirs = fs::read_to_string(path.as_ref())?
+    let src_dirs = fs::read_to_string(path.as_ref())?
         .lines()
         .filter_map(|line| line.split_once(' '))
         .filter_map(|(path, depth)| {
@@ -145,41 +144,27 @@ fn read_config_file<P: AsRef<Path>>(path: P) -> Result<Vec<SrcDir>> {
         })
         .collect::<Vec<_>>();
 
-    let home_dir = env::var("HOME")?;
-    let default_src_dir = SrcDir {
-        path: PathBuf::from_str(format!("{home_dir}/src").as_str())?,
-        search_depth: 2,
-    };
-    src_dirs.extend([default_src_dir]);
-
     Ok(src_dirs)
 }
 
 fn get_projects(mut src_dir: ReadDir, depth: u8) -> Result<Vec<Project>> {
     fn get_projects_recur(dir: &mut ReadDir, depth: u8, res: &mut Vec<Project>) -> Result<()> {
         if depth > 1 {
-            while let Some(entry) = dir.next() {
-                if let Ok(entry) = entry {
-                    let metadata = entry.metadata()?;
-                    if metadata.is_dir() {
-                        get_projects_recur(&mut fs::read_dir(entry.path())?, depth - 1, res)?;
-                    }
+            while let Some(Ok(entry)) = dir.next() {
+                if let Ok(ref mut dir) = fs::read_dir(entry.path()) {
+                    get_projects_recur(dir, depth - 1, res)?;
                 }
             }
-
             return Ok(());
         }
 
-        while let Some(entry) = dir.next() {
-            if let Ok(entry) = entry {
-                let metadata = entry.metadata()?;
+        while let Some(Ok(entry)) = dir.next() {
+            if let Ok(metadata) = entry.metadata() {
                 if metadata.is_dir() {
                     res.push(Project {
                         inner: entry.path(),
                     });
                 }
-            } else {
-                continue;
             }
         }
 
