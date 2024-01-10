@@ -128,8 +128,6 @@ fn main() -> Result<()> {
         inner: selected_project_path,
     };
 
-    println!("Selected: {:?}", selected_project);
-
     switch_to_project_in_tmux(&selected_project, &active_sessions)
 }
 
@@ -188,8 +186,6 @@ fn switch_to_project_in_tmux(project: &Project, active_sessions: &[&str]) -> Res
     let mut switch_session = Command::new(TMUX_BIN);
 
     if in_tmux {
-        println!("In tmux");
-
         if session_exists {
             println!("Switching to session '{}'", project_name);
 
@@ -223,8 +219,6 @@ fn switch_to_project_in_tmux(project: &Project, active_sessions: &[&str]) -> Res
                 .arg(project_name);
         }
     } else {
-        println!("Not in tmux");
-
         if session_exists {
             println!("Attaching to session '{}'", project_name);
 
